@@ -3,15 +3,17 @@
 use bytes::Bytes;
 
 pub(crate) enum Token {
-    LParen,       // `(`
-    RParen,       // `)`
-    LBrace,       // `{`
-    RBrace,       // `}`
-    STAR,         //  `*`
-    DOT,          // `.`
-    COMMA,        // `,`
-    PLUS,         // `+`
-    MINUS,        // `-`
+    LParen, // `(`
+    RParen, // `)`
+    LBrace, // `{`
+    RBrace, // `}`
+    STAR,   //  `*`
+    DOT,    // `.`
+    COMMA,  // `,`
+    PLUS,   // `+`
+    MINUS,  // `-`
+    SLASH,  // `/`
+    COMMENT(Bytes),
     SEMICOLON,    // `;`
     EQUAL,        // =
     EQUALEQUAL,   // ==
@@ -49,6 +51,8 @@ impl std::fmt::Debug for Token {
             Token::LESSEQUAL => f.write_str("LESS_EQUAL <= null"),
             Token::GREATER => f.write_str("GREATER > null"),
             Token::GREATEREQUAL => f.write_str("GREATER_EQUAL >= null"),
+            Token::SLASH => f.write_str("SLASH / null"),
+            Token::COMMENT(_) => f.write_str("COMMENT  null"),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -98,7 +102,7 @@ impl TokenIterator {
             }
         }
     }
-    fn next_token(&mut self) -> Option<Bytes> {
+    fn next_byte(&mut self) -> Option<Bytes> {
         self.skip_whitespaces();
         if self.remaining.len() == 0 {
             return None;
@@ -126,7 +130,7 @@ impl Iterator for TokenIterator {
             return Some(Token::EOF);
         }
 
-        let Some(slice) = self.next_token() else {
+        let Some(slice) = self.next_byte() else {
             self.reached_eof = true;
             return Some(Token::EOF);
         };
@@ -237,6 +241,39 @@ impl Iterator for TokenIterator {
                 }
                 self.remaining = self.remaining.slice(1..);
                 return Some(Token::GREATER);
+            }
+            b"/" => {
+                let peeked_token = self.peek_token();
+                let bytes = match peeked_token {
+                    None => {
+                        self.remaining = self.remaining.slice(1..);
+                        return Some(Token::SLASH);
+                    }
+                    Some(bytes) => bytes,
+                };
+                if let b"/" = bytes.as_ref() {
+                    self.remaining = self.remaining.slice(2..);
+                    loop {
+                        let peeked_token = self.peek_token();
+                        let bytes = match peeked_token {
+                            None => {
+                                self.reached_eof = true;
+                                return Some(Token::EOF);
+                            }
+                            Some(bytes) => bytes,
+                        };
+
+                        if let b"\n" = bytes.as_ref() {
+                            self.remaining = self.remaining.slice(1..);
+                            return self.next();
+                        } else {
+                            self.remaining = self.remaining.slice(1..);
+                        }
+                    }
+                } else {
+                    self.remaining = self.remaining.slice(1..);
+                    Some(Token::SLASH)
+                }
             }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
