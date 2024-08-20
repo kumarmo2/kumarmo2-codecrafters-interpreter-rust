@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use core::str;
-use std::str::FromStr;
+use std::{i64, str::FromStr};
 
 use bytes::Bytes;
 
@@ -19,6 +19,20 @@ impl std::fmt::Debug for LexicalError {
             LexicalError::UnterminatedString { line } => {
                 f.write_fmt(format_args!("[line {line}] Error: Unterminated string."))
             }
+        }
+    }
+}
+
+enum Number {
+    Whole(i64),
+    Float(f64),
+}
+
+impl std::fmt::Debug for Number {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Number::Whole(n) => f.write_fmt(format_args!("{}", n)),
+            Number::Float(n) => f.write_fmt(format_args!("{}", n)),
         }
     }
 }
@@ -45,6 +59,7 @@ pub(crate) enum Token {
     GREATER,      // >
     GREATEREQUAL, // >=
     StringLiteral(String),
+    NumberLiteral(Number),
     EOF,
 }
 
@@ -72,6 +87,7 @@ impl std::fmt::Debug for Token {
             Token::SLASH => f.write_str("SLASH / null"),
             Token::COMMENT(_) => f.write_str("COMMENT  null"),
             Token::StringLiteral(s) => f.write_fmt(format_args!("STRING \"{s}\" {s}")),
+            Token::NumberLiteral(number) => f.write_fmt(format_args!("{:?}", number)),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -315,6 +331,40 @@ impl Iterator for TokenIterator {
                     } else {
                         size_of_str += 1;
                     }
+                }
+            }
+            b"0" | b"1" | b"2" | b"3" | b"4" | b"5" | b"6" | b"7" | b"8" | b"9" => {
+                let mut digit_count = 1;
+                let mut is_float = false;
+                loop {
+                    if self.remaining.slice(digit_count..).len() == 0 {
+                        break;
+                    }
+                    let ch = self.remaining[digit_count] as char;
+                    if ch.is_digit(10) {
+                        digit_count += 1;
+                    } else if ch == '.' {
+                        // TODO: we should probably check that after the ".", there is also some
+                        // digit
+                        digit_count += 1;
+                        is_float = true;
+                    } else {
+                        break;
+                    }
+                }
+                self.remaining = self.remaining.slice(digit_count..);
+                if is_float {
+                    let number = f64::from_str(
+                        std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
+                    )
+                    .unwrap();
+                    Some(Ok(Token::NumberLiteral(Number::Float(number))))
+                } else {
+                    let number = i64::from_str(
+                        std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
+                    )
+                    .unwrap();
+                    Some(Ok(Token::NumberLiteral(Number::Whole(number))))
                 }
             }
             unexpected => {
