@@ -1,22 +1,22 @@
 #![allow(dead_code)]
 
-use std::fmt::Write;
-
 use bytes::Bytes;
 
 pub(crate) enum Token {
-    LParen,      // `(`
-    RParen,      // `)`
-    LBrace,      // `{`
-    RBrace,      // `}`
-    STAR,        //  `*`
-    DOT,         // `.`
-    COMMA,       // `,`
-    PLUS,        // `+`
-    MINUS,       // `-`
-    SEMICOLON,   // `;`
-    EQUAL,       // =
-    EQUAL_EQUAL, // ==
+    LParen,     // `(`
+    RParen,     // `)`
+    LBrace,     // `{`
+    RBrace,     // `}`
+    STAR,       //  `*`
+    DOT,        // `.`
+    COMMA,      // `,`
+    PLUS,       // `+`
+    MINUS,      // `-`
+    SEMICOLON,  // `;`
+    EQUAL,      // =
+    EQUALEQUAL, // ==
+    BANG,       // !
+    BANGEQUAL,  // !=
     UnExpectedToken { ch: char, line: u32 },
     EOF,
 }
@@ -38,7 +38,9 @@ impl std::fmt::Debug for Token {
                 "[line {line}] Error: Unexpected character: {ch}"
             )),
             Token::EQUAL => f.write_str("EQUAL = null"),
-            Token::EQUAL_EQUAL => f.write_str("EQUAL_EQUAL == null"),
+            Token::EQUALEQUAL => f.write_str("EQUAL_EQUAL == null"),
+            Token::BANG => f.write_str("BANG ! null"),
+            Token::BANGEQUAL => f.write_str("BANG_EQUAL != null"),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -175,10 +177,26 @@ impl Iterator for TokenIterator {
                 };
                 if let b"=" = bytes.as_ref() {
                     self.remaining = self.remaining.slice(2..);
-                    return Some(Token::EQUAL_EQUAL);
+                    return Some(Token::EQUALEQUAL);
                 }
                 self.remaining = self.remaining.slice(1..);
                 return Some(Token::EQUAL);
+            }
+            b"!" => {
+                let peeked_token = self.peek_token();
+                let bytes = match peeked_token {
+                    None => {
+                        self.remaining = self.remaining.slice(1..);
+                        return Some(Token::BANG);
+                    }
+                    Some(bytes) => bytes,
+                };
+                if let b"=" = bytes.as_ref() {
+                    self.remaining = self.remaining.slice(2..);
+                    return Some(Token::BANGEQUAL);
+                }
+                self.remaining = self.remaining.slice(1..);
+                return Some(Token::BANG);
             }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
