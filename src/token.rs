@@ -93,6 +93,7 @@ impl TokenIterator {
             let ch = self.remaining.slice(0..1);
             if *ch == *b"\n" {
                 self.line += 1;
+                self.remaining = self.remaining.slice(1..);
                 continue;
             }
             if *ch == *b" " || *ch == *b"\t" {
@@ -134,6 +135,7 @@ impl Iterator for TokenIterator {
             self.reached_eof = true;
             return Some(Token::EOF);
         };
+        // println!(">> found next_byte, slice: {:?}", slice);
         let ch = slice.as_ref();
         let token_to_return = match ch {
             b"(" => {
