@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{self, Write};
 
 use token::Scanner;
+use token::Token;
 
 pub(crate) mod token;
 
@@ -26,14 +27,23 @@ fn main() {
                 String::new()
             });
 
+            let mut found_lexical_error = false;
             // Uncomment this block to pass the first stage
             if !file_contents.is_empty() {
                 let scanner = Scanner::new(file_contents);
                 for token in scanner.iter() {
-                    println!("{:?}", token);
+                    if let Token::UnExpectedToken { .. } = &token {
+                        eprintln!("{:?}", token);
+                        found_lexical_error = true;
+                    } else {
+                        println!("{:?}", token);
+                    }
                 }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            }
+            if found_lexical_error {
+                std::process::exit(65);
             }
         }
         _ => {

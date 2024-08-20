@@ -15,37 +15,30 @@ pub(crate) enum Token {
     PLUS,      // `+`
     MINUS,     // `-`
     SEMICOLON, // `;`
+    UnExpectedToken { ch: char, line: u32 },
     EOF,
 }
 
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str_repr = match self {
-            Token::LParen => "LEFT_PAREN ( null",
-            Token::RParen => "RIGHT_PAREN ) null",
-            Token::LBrace => "LEFT_BRACE { null",
-            Token::RBrace => "RIGHT_BRACE } null",
-            Token::STAR => "STAR * null",
-            Token::DOT => "DOT . null",
-            Token::COMMA => "COMMA , null",
-            Token::PLUS => "PLUS + null",
-            Token::MINUS => "MINUS - null",
-            Token::SEMICOLON => "SEMICOLON ; null",
-            Token::EOF => "EOF  null",
-        };
-        f.write_str(&str_repr)
+        match self {
+            Token::LParen => f.write_str("LEFT_PAREN ( null"),
+            Token::RParen => f.write_str("RIGHT_PAREN ) null"),
+            Token::LBrace => f.write_str("LEFT_BRACE { null"),
+            Token::RBrace => f.write_str("RIGHT_BRACE } null"),
+            Token::STAR => f.write_str("STAR * null"),
+            Token::DOT => f.write_str("DOT . null"),
+            Token::COMMA => f.write_str("COMMA , null"),
+            Token::PLUS => f.write_str("PLUS + null"),
+            Token::MINUS => f.write_str("MINUS - null"),
+            Token::SEMICOLON => f.write_str("SEMICOLON ; null"),
+            Token::UnExpectedToken { ch, line } => f.write_fmt(format_args!(
+                "[line {line}] Error: Unexpected character: {ch}"
+            )),
+            Token::EOF => f.write_str("EOF  null"),
+        }
     }
 }
-
-// impl Token {
-//     pub(crate) fn to_string(&self) -> String {
-//         match self {
-//             Token::LParen => "LEFT_PAREN ( null".to_owned(),
-//             Token::RParen => "RIGHT_PAREN ) null".to_owned(),
-//             Token::EOF => "EOF  null".to_owned(),
-//         }
-//     }
-// }
 
 pub(crate) struct Scanner {
     _source: Bytes,
@@ -62,6 +55,7 @@ impl Scanner {
         TokenIterator {
             remaining: self._source.clone(),
             reached_eof: false,
+            line: 1,
         }
     }
 }
@@ -69,6 +63,34 @@ impl Scanner {
 pub(crate) struct TokenIterator {
     remaining: Bytes,
     reached_eof: bool,
+    line: u32,
+}
+
+impl TokenIterator {
+    fn skip_whitespaces(&mut self) {
+        loop {
+            if self.remaining.len() == 0 {
+                return;
+            }
+            let ch = self.remaining.slice(0..1);
+            if *ch == *b"\n" {
+                self.line += 1;
+                continue;
+            }
+            if *ch == *b" " || *ch == *b"\t" {
+                self.remaining = self.remaining.slice(1..);
+            } else {
+                break;
+            }
+        }
+    }
+    fn next_token(&mut self) -> Option<Bytes> {
+        self.skip_whitespaces();
+        if self.remaining.len() == 0 {
+            return None;
+        }
+        Some(self.remaining.slice(0..1))
+    }
 }
 
 impl Iterator for TokenIterator {
@@ -83,19 +105,10 @@ impl Iterator for TokenIterator {
             return Some(Token::EOF);
         }
 
-        loop {
-            if self.remaining.len() == 0 {
-                self.reached_eof = true;
-                return Some(Token::EOF);
-            }
-            let ch = self.remaining.slice(0..1);
-            if *ch == *b" " || *ch == *b"\t" {
-                self.remaining = self.remaining.slice(1..);
-            } else {
-                break;
-            }
-        }
-        let slice = self.remaining.slice(0..1);
+        let Some(slice) = self.next_token() else {
+            self.reached_eof = true;
+            return Some(Token::EOF);
+        };
         let ch = slice.as_ref();
         let token_to_return = match ch {
             b"(" => {
@@ -138,7 +151,14 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 Some(Token::SEMICOLON)
             }
-            _ => unimplemented!("unimplemented for char: {:?}", ch),
+            unexpected => {
+                self.remaining = self.remaining.slice(1..);
+                let x = unexpected[0] as u32;
+                let ch = unsafe { char::from_u32_unchecked(x) };
+                let line = self.line;
+                Some(Token::UnExpectedToken { ch, line })
+                // unimplemented!("unimplemented for char: {:?}", ch),
+            }
         };
         token_to_return
     }
