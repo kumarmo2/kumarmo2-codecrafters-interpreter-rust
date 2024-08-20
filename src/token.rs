@@ -7,6 +7,8 @@ use bytes::Bytes;
 pub(crate) enum Token {
     LParen, // `(`
     RParen, // `)`
+    LBrace, // `{`
+    RBrace, // `}`
     EOF,
 }
 
@@ -15,21 +17,23 @@ impl std::fmt::Debug for Token {
         let str_repr = match self {
             Token::LParen => "LEFT_PAREN ( null",
             Token::RParen => "RIGHT_PAREN ) null",
+            Token::LBrace => "LEFT_BRACE { null",
+            Token::RBrace => "RIGHT_BRACE } null",
             Token::EOF => "EOF  null",
         };
         f.write_str(&str_repr)
     }
 }
 
-impl Token {
-    pub(crate) fn to_string(&self) -> String {
-        match self {
-            Token::LParen => "LEFT_PAREN ( null".to_owned(),
-            Token::RParen => "RIGHT_PAREN ) null".to_owned(),
-            Token::EOF => "EOF  null".to_owned(),
-        }
-    }
-}
+// impl Token {
+//     pub(crate) fn to_string(&self) -> String {
+//         match self {
+//             Token::LParen => "LEFT_PAREN ( null".to_owned(),
+//             Token::RParen => "RIGHT_PAREN ) null".to_owned(),
+//             Token::EOF => "EOF  null".to_owned(),
+//         }
+//     }
+// }
 
 pub(crate) struct Scanner {
     _source: Bytes,
@@ -89,6 +93,14 @@ impl Iterator for TokenIterator {
             b")" => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Token::RParen)
+            }
+            b"{" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::LBrace)
+            }
+            b"}" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::RBrace)
             }
             _ => unimplemented!(),
         };
