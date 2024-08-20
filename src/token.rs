@@ -1,6 +1,27 @@
 #![allow(dead_code)]
 
+use core::str;
+use std::str::FromStr;
+
 use bytes::Bytes;
+
+pub enum LexicalError {
+    UnExpectedToken { ch: char, line: u32 }, // Error token.
+    UnterminatedString { line: u32 },        // Error Token.
+}
+
+impl std::fmt::Debug for LexicalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LexicalError::UnExpectedToken { ch, line } => f.write_fmt(format_args!(
+                "[line {line}] Error: Unexpected character: {ch}"
+            )),
+            LexicalError::UnterminatedString { line } => {
+                f.write_fmt(format_args!("[line {line}] Error: Unterminated string."))
+            }
+        }
+    }
+}
 
 pub(crate) enum Token {
     LParen, // `(`
@@ -23,7 +44,7 @@ pub(crate) enum Token {
     LESSEQUAL,    // <=
     GREATER,      // >
     GREATEREQUAL, // >=
-    UnExpectedToken { ch: char, line: u32 },
+    StringLiteral(String),
     EOF,
 }
 
@@ -40,9 +61,6 @@ impl std::fmt::Debug for Token {
             Token::PLUS => f.write_str("PLUS + null"),
             Token::MINUS => f.write_str("MINUS - null"),
             Token::SEMICOLON => f.write_str("SEMICOLON ; null"),
-            Token::UnExpectedToken { ch, line } => f.write_fmt(format_args!(
-                "[line {line}] Error: Unexpected character: {ch}"
-            )),
             Token::EQUAL => f.write_str("EQUAL = null"),
             Token::EQUALEQUAL => f.write_str("EQUAL_EQUAL == null"),
             Token::BANG => f.write_str("BANG ! null"),
@@ -53,6 +71,7 @@ impl std::fmt::Debug for Token {
             Token::GREATEREQUAL => f.write_str("GREATER_EQUAL >= null"),
             Token::SLASH => f.write_str("SLASH / null"),
             Token::COMMENT(_) => f.write_str("COMMENT  null"),
+            Token::StringLiteral(s) => f.write_fmt(format_args!("STRING \"{s}\" {s}")),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -120,7 +139,7 @@ impl TokenIterator {
 }
 
 impl Iterator for TokenIterator {
-    type Item = Token;
+    type Item = Result<Token, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.reached_eof {
@@ -128,55 +147,55 @@ impl Iterator for TokenIterator {
         }
         if self.remaining.len() == 0 {
             self.reached_eof = true;
-            return Some(Token::EOF);
+            return Some(Ok(Token::EOF));
         }
 
         let Some(slice) = self.next_byte() else {
             self.reached_eof = true;
-            return Some(Token::EOF);
+            return Some(Ok(Token::EOF));
         };
         // println!(">> found next_byte, slice: {:?}", slice);
         let ch = slice.as_ref();
         let token_to_return = match ch {
             b"(" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::LParen)
+                Some(Ok(Token::LParen))
             }
             b")" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::RParen)
+                Some(Ok(Token::RParen))
             }
             b"{" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::LBrace)
+                Some(Ok(Token::LBrace))
             }
             b"}" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::RBrace)
+                Some(Ok(Token::RBrace))
             }
             b"*" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::STAR)
+                Some(Ok(Token::STAR))
             }
             b"." => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::DOT)
+                Some(Ok(Token::DOT))
             }
             b"," => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::COMMA)
+                Some(Ok(Token::COMMA))
             }
             b"+" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::PLUS)
+                Some(Ok(Token::PLUS))
             }
             b"-" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::MINUS)
+                Some(Ok(Token::MINUS))
             }
             b";" => {
                 self.remaining = self.remaining.slice(1..);
-                Some(Token::SEMICOLON)
+                Some(Ok(Token::SEMICOLON))
             }
             b"=" => {
                 let peeked_token = self.peek_token();
@@ -185,71 +204,71 @@ impl Iterator for TokenIterator {
                 let bytes = match peeked_token {
                     None => {
                         self.remaining = self.remaining.slice(1..);
-                        return Some(Token::EQUAL);
+                        return Some(Ok(Token::EQUAL));
                     }
                     Some(bytes) => bytes,
                 };
                 if let b"=" = bytes.as_ref() {
                     self.remaining = self.remaining.slice(2..);
-                    return Some(Token::EQUALEQUAL);
+                    return Some(Ok(Token::EQUALEQUAL));
                 }
                 self.remaining = self.remaining.slice(1..);
-                return Some(Token::EQUAL);
+                return Some(Ok(Token::EQUAL));
             }
             b"!" => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
                         self.remaining = self.remaining.slice(1..);
-                        return Some(Token::BANG);
+                        return Some(Ok(Token::BANG));
                     }
                     Some(bytes) => bytes,
                 };
                 if let b"=" = bytes.as_ref() {
                     self.remaining = self.remaining.slice(2..);
-                    return Some(Token::BANGEQUAL);
+                    return Some(Ok(Token::BANGEQUAL));
                 }
                 self.remaining = self.remaining.slice(1..);
-                return Some(Token::BANG);
+                return Some(Ok(Token::BANG));
             }
             b"<" => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
                         self.remaining = self.remaining.slice(1..);
-                        return Some(Token::LESS);
+                        return Some(Ok(Token::LESS));
                     }
                     Some(bytes) => bytes,
                 };
                 if let b"=" = bytes.as_ref() {
                     self.remaining = self.remaining.slice(2..);
-                    return Some(Token::LESSEQUAL);
+                    return Some(Ok(Token::LESSEQUAL));
                 }
                 self.remaining = self.remaining.slice(1..);
-                return Some(Token::LESS);
+                return Some(Ok(Token::LESS));
             }
             b">" => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
                         self.remaining = self.remaining.slice(1..);
-                        return Some(Token::GREATER);
+                        return Some(Ok(Token::GREATER));
                     }
                     Some(bytes) => bytes,
                 };
                 if let b"=" = bytes.as_ref() {
                     self.remaining = self.remaining.slice(2..);
-                    return Some(Token::GREATEREQUAL);
+                    return Some(Ok(Token::GREATEREQUAL));
                 }
                 self.remaining = self.remaining.slice(1..);
-                return Some(Token::GREATER);
+                return Some(Ok(Token::GREATER));
             }
             b"/" => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
                         self.remaining = self.remaining.slice(1..);
-                        return Some(Token::SLASH);
+                        return Some(Ok(Token::SLASH));
                     }
                     Some(bytes) => bytes,
                 };
@@ -260,7 +279,7 @@ impl Iterator for TokenIterator {
                         let bytes = match peeked_token {
                             None => {
                                 self.reached_eof = true;
-                                return Some(Token::EOF);
+                                return Some(Ok(Token::EOF));
                             }
                             Some(bytes) => bytes,
                         };
@@ -274,7 +293,28 @@ impl Iterator for TokenIterator {
                     }
                 } else {
                     self.remaining = self.remaining.slice(1..);
-                    Some(Token::SLASH)
+                    Some(Ok(Token::SLASH))
+                }
+            }
+            b"\"" => {
+                self.remaining = self.remaining.slice(1..);
+                let mut size_of_str: usize = 0;
+                let remaining_size = self.remaining.len();
+                loop {
+                    if size_of_str == remaining_size {
+                        self.remaining = self.remaining.slice(remaining_size..);
+                        return Some(Err(LexicalError::UnterminatedString { line: self.line }));
+                    }
+                    let x = self.remaining[size_of_str];
+                    if *b"\"" == [x] {
+                        let bytes = self.remaining.slice(0..size_of_str);
+                        // TODO: remove unwrap.
+                        let string = String::from_str(str::from_utf8(&bytes).unwrap()).unwrap();
+                        self.remaining = self.remaining.slice(size_of_str + 1..);
+                        return Some(Ok(Token::StringLiteral(string)));
+                    } else {
+                        size_of_str += 1;
+                    }
                 }
             }
             unexpected => {
@@ -282,7 +322,7 @@ impl Iterator for TokenIterator {
                 let x = unexpected[0] as u32;
                 let ch = unsafe { char::from_u32_unchecked(x) };
                 let line = self.line;
-                Some(Token::UnExpectedToken { ch, line })
+                Some(Err(LexicalError::UnExpectedToken { ch, line }))
             }
         };
         token_to_return

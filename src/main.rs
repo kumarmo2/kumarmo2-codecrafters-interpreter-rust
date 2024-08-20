@@ -32,11 +32,12 @@ fn main() {
             if !file_contents.is_empty() {
                 let scanner = Scanner::new(file_contents);
                 for token in scanner.iter() {
-                    if let Token::UnExpectedToken { .. } = &token {
-                        eprintln!("{:?}", token);
-                        found_lexical_error = true;
-                    } else {
-                        println!("{:?}", token);
+                    match token {
+                        Ok(token) => println!("{:?}", token),
+                        Err(token) => {
+                            found_lexical_error = true;
+                            eprintln!("{:?}", token)
+                        }
                     }
                 }
             } else {
