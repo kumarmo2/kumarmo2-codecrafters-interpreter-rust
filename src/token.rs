@@ -5,16 +5,18 @@ use std::fmt::Write;
 use bytes::Bytes;
 
 pub(crate) enum Token {
-    LParen,    // `(`
-    RParen,    // `)`
-    LBrace,    // `{`
-    RBrace,    // `}`
-    STAR,      //  `*`
-    DOT,       // `.`
-    COMMA,     // `,`
-    PLUS,      // `+`
-    MINUS,     // `-`
-    SEMICOLON, // `;`
+    LParen,      // `(`
+    RParen,      // `)`
+    LBrace,      // `{`
+    RBrace,      // `}`
+    STAR,        //  `*`
+    DOT,         // `.`
+    COMMA,       // `,`
+    PLUS,        // `+`
+    MINUS,       // `-`
+    SEMICOLON,   // `;`
+    EQUAL,       // =
+    EQUAL_EQUAL, // ==
     UnExpectedToken { ch: char, line: u32 },
     EOF,
 }
@@ -35,6 +37,8 @@ impl std::fmt::Debug for Token {
             Token::UnExpectedToken { ch, line } => f.write_fmt(format_args!(
                 "[line {line}] Error: Unexpected character: {ch}"
             )),
+            Token::EQUAL => f.write_str("EQUAL = null"),
+            Token::EQUAL_EQUAL => f.write_str("EQUAL_EQUAL == null"),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -90,6 +94,13 @@ impl TokenIterator {
             return None;
         }
         Some(self.remaining.slice(0..1))
+    }
+
+    fn peek_token(&self) -> Option<Bytes> {
+        if self.remaining.len() == 1 {
+            return None;
+        }
+        Some(self.remaining.slice(1..2))
     }
 }
 
@@ -151,13 +162,30 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 Some(Token::SEMICOLON)
             }
+            b"=" => {
+                let peeked_token = self.peek_token();
+                // if let None = peeked_token {}
+
+                let bytes = match peeked_token {
+                    None => {
+                        self.remaining = self.remaining.slice(1..);
+                        return Some(Token::EQUAL);
+                    }
+                    Some(bytes) => bytes,
+                };
+                if let b"=" = bytes.as_ref() {
+                    self.remaining = self.remaining.slice(2..);
+                    return Some(Token::EQUAL_EQUAL);
+                }
+                self.remaining = self.remaining.slice(1..);
+                return Some(Token::EQUAL);
+            }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
                 let x = unexpected[0] as u32;
                 let ch = unsafe { char::from_u32_unchecked(x) };
                 let line = self.line;
                 Some(Token::UnExpectedToken { ch, line })
-                // unimplemented!("unimplemented for char: {:?}", ch),
             }
         };
         token_to_return
