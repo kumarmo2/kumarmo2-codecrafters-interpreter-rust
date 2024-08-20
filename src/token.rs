@@ -5,10 +5,16 @@ use std::fmt::Write;
 use bytes::Bytes;
 
 pub(crate) enum Token {
-    LParen, // `(`
-    RParen, // `)`
-    LBrace, // `{`
-    RBrace, // `}`
+    LParen,    // `(`
+    RParen,    // `)`
+    LBrace,    // `{`
+    RBrace,    // `}`
+    STAR,      //  `*`
+    DOT,       // `.`
+    COMMA,     // `,`
+    PLUS,      // `+`
+    MINUS,     // `-`
+    SEMICOLON, // `;`
     EOF,
 }
 
@@ -19,6 +25,12 @@ impl std::fmt::Debug for Token {
             Token::RParen => "RIGHT_PAREN ) null",
             Token::LBrace => "LEFT_BRACE { null",
             Token::RBrace => "RIGHT_BRACE } null",
+            Token::STAR => "STAR * null",
+            Token::DOT => "DOT . null",
+            Token::COMMA => "COMMA , null",
+            Token::PLUS => "PLUS + null",
+            Token::MINUS => "MINUS - null",
+            Token::SEMICOLON => "SEMICOLON ; null",
             Token::EOF => "EOF  null",
         };
         f.write_str(&str_repr)
@@ -102,7 +114,31 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 Some(Token::RBrace)
             }
-            _ => unimplemented!(),
+            b"*" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::STAR)
+            }
+            b"." => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::DOT)
+            }
+            b"," => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::COMMA)
+            }
+            b"+" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::PLUS)
+            }
+            b"-" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::MINUS)
+            }
+            b";" => {
+                self.remaining = self.remaining.slice(1..);
+                Some(Token::SEMICOLON)
+            }
+            _ => unimplemented!("unimplemented for char: {:?}", ch),
         };
         token_to_return
     }
