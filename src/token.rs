@@ -3,20 +3,24 @@
 use bytes::Bytes;
 
 pub(crate) enum Token {
-    LParen,     // `(`
-    RParen,     // `)`
-    LBrace,     // `{`
-    RBrace,     // `}`
-    STAR,       //  `*`
-    DOT,        // `.`
-    COMMA,      // `,`
-    PLUS,       // `+`
-    MINUS,      // `-`
-    SEMICOLON,  // `;`
-    EQUAL,      // =
-    EQUALEQUAL, // ==
-    BANG,       // !
-    BANGEQUAL,  // !=
+    LParen,       // `(`
+    RParen,       // `)`
+    LBrace,       // `{`
+    RBrace,       // `}`
+    STAR,         //  `*`
+    DOT,          // `.`
+    COMMA,        // `,`
+    PLUS,         // `+`
+    MINUS,        // `-`
+    SEMICOLON,    // `;`
+    EQUAL,        // =
+    EQUALEQUAL,   // ==
+    BANG,         // !
+    BANGEQUAL,    // !=
+    LESS,         // <
+    LESSEQUAL,    // <=
+    GREATER,      // >
+    GREATEREQUAL, // >=
     UnExpectedToken { ch: char, line: u32 },
     EOF,
 }
@@ -41,6 +45,10 @@ impl std::fmt::Debug for Token {
             Token::EQUALEQUAL => f.write_str("EQUAL_EQUAL == null"),
             Token::BANG => f.write_str("BANG ! null"),
             Token::BANGEQUAL => f.write_str("BANG_EQUAL != null"),
+            Token::LESS => f.write_str("LESS < null"),
+            Token::LESSEQUAL => f.write_str("LESS_EQUAL <= null"),
+            Token::GREATER => f.write_str("GREATER > null"),
+            Token::GREATEREQUAL => f.write_str("GREATER_EQUAL >= null"),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -197,6 +205,38 @@ impl Iterator for TokenIterator {
                 }
                 self.remaining = self.remaining.slice(1..);
                 return Some(Token::BANG);
+            }
+            b"<" => {
+                let peeked_token = self.peek_token();
+                let bytes = match peeked_token {
+                    None => {
+                        self.remaining = self.remaining.slice(1..);
+                        return Some(Token::LESS);
+                    }
+                    Some(bytes) => bytes,
+                };
+                if let b"=" = bytes.as_ref() {
+                    self.remaining = self.remaining.slice(2..);
+                    return Some(Token::LESSEQUAL);
+                }
+                self.remaining = self.remaining.slice(1..);
+                return Some(Token::LESS);
+            }
+            b">" => {
+                let peeked_token = self.peek_token();
+                let bytes = match peeked_token {
+                    None => {
+                        self.remaining = self.remaining.slice(1..);
+                        return Some(Token::GREATER);
+                    }
+                    Some(bytes) => bytes,
+                };
+                if let b"=" = bytes.as_ref() {
+                    self.remaining = self.remaining.slice(2..);
+                    return Some(Token::GREATEREQUAL);
+                }
+                self.remaining = self.remaining.slice(1..);
+                return Some(Token::GREATER);
             }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
