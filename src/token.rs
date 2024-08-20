@@ -23,29 +23,6 @@ impl std::fmt::Debug for LexicalError {
     }
 }
 
-// enum Number {
-//     Whole(i64),
-//     Float(f64),
-// }
-
-// impl std::fmt::Debug for Number {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Number::Whole(n) => f.write_fmt(format_args!("{:?}", n)),
-//             Number::Float(n) => f.write_fmt(format_args!("{:?}", n)),
-//         }
-//     }
-// }
-
-// impl std::fmt::Display for Number {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Number::Whole(n) => f.write_fmt(format_args!("{}", n)),
-//             Number::Float(n) => f.write_fmt(format_args!("{}", n)),
-//         }
-//     }
-// }
-
 pub(crate) enum Token {
     LParen, // `(`
     RParen, // `)`
@@ -68,7 +45,8 @@ pub(crate) enum Token {
     GREATER,      // >
     GREATEREQUAL, // >=
     StringLiteral(String),
-    NumberLiteral(f64),
+    NumberLiteral(f64, Bytes),
+    Identifier(Bytes),
     EOF,
 }
 
@@ -96,9 +74,16 @@ impl std::fmt::Debug for Token {
             Token::SLASH => f.write_str("SLASH / null"),
             Token::COMMENT(_) => f.write_str("COMMENT  null"),
             Token::StringLiteral(s) => f.write_fmt(format_args!("STRING \"{s}\" {s}")),
-            Token::NumberLiteral(number) => {
-                f.write_fmt(format_args!("NUMBER {} {:?}", number, number))
-            }
+            Token::NumberLiteral(number, bytes) => f.write_fmt(format_args!(
+                "NUMBER {} {:?}",
+                String::from_str(std::str::from_utf8(bytes.as_ref()).unwrap()).unwrap(),
+                number
+            )),
+            Token::Identifier(identifier_bytes) => f.write_fmt(format_args!(
+                // TODO: remove unwraps.
+                "IDENTIFIER {} null",
+                String::from_str(std::str::from_utf8(identifier_bytes.as_ref()).unwrap()).unwrap()
+            )),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -181,50 +166,49 @@ impl Iterator for TokenIterator {
             self.reached_eof = true;
             return Some(Ok(Token::EOF));
         };
-        // println!(">> found next_byte, slice: {:?}", slice);
-        let ch = slice.as_ref();
+        let ch = slice[0] as char;
         let token_to_return = match ch {
-            b"(" => {
+            '(' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::LParen))
             }
-            b")" => {
+            ')' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::RParen))
             }
-            b"{" => {
+            '{' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::LBrace))
             }
-            b"}" => {
+            '}' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::RBrace))
             }
-            b"*" => {
+            '*' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::STAR))
             }
-            b"." => {
+            '.' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::DOT))
             }
-            b"," => {
+            ',' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::COMMA))
             }
-            b"+" => {
+            '+' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::PLUS))
             }
-            b"-" => {
+            '-' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::MINUS))
             }
-            b";" => {
+            ';' => {
                 self.remaining = self.remaining.slice(1..);
                 Some(Ok(Token::SEMICOLON))
             }
-            b"=" => {
+            '=' => {
                 let peeked_token = self.peek_token();
                 // if let None = peeked_token {}
 
@@ -242,7 +226,7 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 return Some(Ok(Token::EQUAL));
             }
-            b"!" => {
+            '!' => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
@@ -258,7 +242,7 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 return Some(Ok(Token::BANG));
             }
-            b"<" => {
+            '<' => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
@@ -274,7 +258,7 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 return Some(Ok(Token::LESS));
             }
-            b">" => {
+            '>' => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
@@ -290,7 +274,7 @@ impl Iterator for TokenIterator {
                 self.remaining = self.remaining.slice(1..);
                 return Some(Ok(Token::GREATER));
             }
-            b"/" => {
+            '/' => {
                 let peeked_token = self.peek_token();
                 let bytes = match peeked_token {
                     None => {
@@ -323,7 +307,7 @@ impl Iterator for TokenIterator {
                     Some(Ok(Token::SLASH))
                 }
             }
-            b"\"" => {
+            '\"' => {
                 self.remaining = self.remaining.slice(1..);
                 let mut size_of_str: usize = 0;
                 let remaining_size = self.remaining.len();
@@ -344,7 +328,7 @@ impl Iterator for TokenIterator {
                     }
                 }
             }
-            b"0" | b"1" | b"2" | b"3" | b"4" | b"5" | b"6" | b"7" | b"8" | b"9" => {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                 let mut digit_count = 1;
                 let mut is_float = false;
                 loop {
@@ -355,8 +339,6 @@ impl Iterator for TokenIterator {
                     if ch.is_digit(10) {
                         digit_count += 1;
                     } else if ch == '.' && is_float == false {
-                        // TODO: we should probably check that after the ".", there is also some
-                        // digit
                         if self.remaining.slice(digit_count + 1..).len() == 0 {
                             break;
                         }
@@ -371,25 +353,33 @@ impl Iterator for TokenIterator {
                         break;
                     }
                 }
-                let number = f64::from_str(
-                    std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
-                )
-                .unwrap();
+                let bytes = self.remaining.slice(0..digit_count);
+                let number = f64::from_str(std::str::from_utf8(bytes.as_ref()).unwrap()).unwrap();
                 self.remaining = self.remaining.slice(digit_count..);
-                Some(Ok(Token::NumberLiteral(number)))
-                // let token = if is_float {
-                // } else {
-                //     let number = i64::from_str(
-                //         std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
-                //     )
-                //     .unwrap();
-                //     Some(Ok(Token::NumberLiteral(Number::Whole(number))))
-                // };
+                Some(Ok(Token::NumberLiteral(number, bytes)))
+            }
+            ch if ch.is_alphabetic() || ch == '_' => {
+                let mut identifier_len = 1;
+                loop {
+                    if self.remaining.slice(identifier_len..).len() == 0 {
+                        break;
+                    }
+                    let ch = self.remaining[identifier_len] as char;
+                    if ch.is_alphanumeric() || ch == '_' {
+                        identifier_len += 1;
+                    } else {
+                        break;
+                    }
+                }
+                let token = Some(Ok(Token::Identifier(
+                    self.remaining.slice(0..identifier_len),
+                )));
+                self.remaining = self.remaining.slice(identifier_len..);
+                token
             }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
-                let x = unexpected[0] as u32;
-                let ch = unsafe { char::from_u32_unchecked(x) };
+                let ch = unexpected;
                 let line = self.line;
                 Some(Err(LexicalError::UnExpectedToken { ch, line }))
             }
