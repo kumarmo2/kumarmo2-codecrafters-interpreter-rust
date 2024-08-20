@@ -23,19 +23,28 @@ impl std::fmt::Debug for LexicalError {
     }
 }
 
-enum Number {
-    Whole(i64),
-    Float(f64),
-}
+// enum Number {
+//     Whole(i64),
+//     Float(f64),
+// }
 
-impl std::fmt::Debug for Number {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Number::Whole(n) => f.write_fmt(format_args!("{}", n)),
-            Number::Float(n) => f.write_fmt(format_args!("{}", n)),
-        }
-    }
-}
+// impl std::fmt::Debug for Number {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Number::Whole(n) => f.write_fmt(format_args!("{:?}", n)),
+//             Number::Float(n) => f.write_fmt(format_args!("{:?}", n)),
+//         }
+//     }
+// }
+
+// impl std::fmt::Display for Number {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Number::Whole(n) => f.write_fmt(format_args!("{}", n)),
+//             Number::Float(n) => f.write_fmt(format_args!("{}", n)),
+//         }
+//     }
+// }
 
 pub(crate) enum Token {
     LParen, // `(`
@@ -59,7 +68,7 @@ pub(crate) enum Token {
     GREATER,      // >
     GREATEREQUAL, // >=
     StringLiteral(String),
-    NumberLiteral(Number),
+    NumberLiteral(f64),
     EOF,
 }
 
@@ -87,7 +96,9 @@ impl std::fmt::Debug for Token {
             Token::SLASH => f.write_str("SLASH / null"),
             Token::COMMENT(_) => f.write_str("COMMENT  null"),
             Token::StringLiteral(s) => f.write_fmt(format_args!("STRING \"{s}\" {s}")),
-            Token::NumberLiteral(number) => f.write_fmt(format_args!("{:?}", number)),
+            Token::NumberLiteral(number) => {
+                f.write_fmt(format_args!("NUMBER {} {:?}", number, number))
+            }
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -343,29 +354,37 @@ impl Iterator for TokenIterator {
                     let ch = self.remaining[digit_count] as char;
                     if ch.is_digit(10) {
                         digit_count += 1;
-                    } else if ch == '.' {
+                    } else if ch == '.' && is_float == false {
                         // TODO: we should probably check that after the ".", there is also some
                         // digit
-                        digit_count += 1;
-                        is_float = true;
+                        if self.remaining.slice(digit_count + 1..).len() == 0 {
+                            break;
+                        }
+                        let ch = self.remaining[digit_count + 1] as char;
+                        if !ch.is_digit(10) {
+                            break;
+                        } else {
+                            digit_count += 1;
+                            is_float = true;
+                        }
                     } else {
                         break;
                     }
                 }
+                let number = f64::from_str(
+                    std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
+                )
+                .unwrap();
                 self.remaining = self.remaining.slice(digit_count..);
-                if is_float {
-                    let number = f64::from_str(
-                        std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
-                    )
-                    .unwrap();
-                    Some(Ok(Token::NumberLiteral(Number::Float(number))))
-                } else {
-                    let number = i64::from_str(
-                        std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
-                    )
-                    .unwrap();
-                    Some(Ok(Token::NumberLiteral(Number::Whole(number))))
-                }
+                Some(Ok(Token::NumberLiteral(number)))
+                // let token = if is_float {
+                // } else {
+                //     let number = i64::from_str(
+                //         std::str::from_utf8(self.remaining.slice(0..digit_count).as_ref()).unwrap(),
+                //     )
+                //     .unwrap();
+                //     Some(Ok(Token::NumberLiteral(Number::Whole(number))))
+                // };
             }
             unexpected => {
                 self.remaining = self.remaining.slice(1..);
