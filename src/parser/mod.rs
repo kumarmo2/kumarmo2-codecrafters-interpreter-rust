@@ -55,6 +55,7 @@ impl Parser {
             Token::True => Expression::BooleanLiteral(true),
             Token::False => Expression::BooleanLiteral(false),
             Token::NumberLiteral(val, _) => Expression::NumberLiteral(*val),
+            Token::StringLiteral(bytes) => Expression::StringLiteral(bytes.clone()),
             Token::Nil => Expression::NilLiteral,
             _ => unimplemented!(),
         };
