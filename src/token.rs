@@ -1,9 +1,13 @@
 #![allow(dead_code)]
 
 use core::str;
-use std::{i64, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use bytes::Bytes;
+use lazy_static::lazy_static;
 
 pub enum LexicalError {
     UnExpectedToken { ch: char, line: u32 }, // Error token.
@@ -23,6 +27,30 @@ impl std::fmt::Debug for LexicalError {
     }
 }
 
+lazy_static! {
+    pub(crate) static ref KEYWORDS: HashMap<&'static str, Token> = {
+        let mut m = HashMap::new();
+        m.insert("and", Token::And);
+        m.insert("class", Token::Class);
+        m.insert("else", Token::Else);
+        m.insert("false", Token::False);
+        m.insert("for", Token::For);
+        m.insert("fun", Token::Fun);
+        m.insert("if", Token::If);
+        m.insert("nil", Token::Nil);
+        m.insert("or", Token::Or);
+        m.insert("print", Token::Print);
+        m.insert("return", Token::Return);
+        m.insert("super", Token::Super);
+        m.insert("this", Token::This);
+        m.insert("true", Token::True);
+        m.insert("var", Token::Var);
+        m.insert("while", Token::While);
+        m
+    };
+}
+
+#[derive(Clone)]
 pub(crate) enum Token {
     LParen, // `(`
     RParen, // `)`
@@ -47,6 +75,22 @@ pub(crate) enum Token {
     StringLiteral(String),
     NumberLiteral(f64, Bytes),
     Identifier(Bytes),
+    And,
+    Class,
+    Else,
+    False,
+    For,
+    Fun,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
     EOF,
 }
 
@@ -84,6 +128,22 @@ impl std::fmt::Debug for Token {
                 "IDENTIFIER {} null",
                 String::from_str(std::str::from_utf8(identifier_bytes.as_ref()).unwrap()).unwrap()
             )),
+            Token::And => f.write_str("AND and null"),
+            Token::Class => f.write_str("CLASS class null"),
+            Token::Else => f.write_str("ELSE else null"),
+            Token::False => f.write_str("FALSE false null"),
+            Token::For => f.write_str("FOR for null"),
+            Token::Fun => f.write_str("FUN fun null"),
+            Token::If => f.write_str("IF if null"),
+            Token::Nil => f.write_str("NIL nil null"),
+            Token::Or => f.write_str("OR or null"),
+            Token::Print => f.write_str("PRINT print null"),
+            Token::Return => f.write_str("RETURN return null"),
+            Token::Super => f.write_str("SUPER super null"),
+            Token::This => f.write_str("THIS this null"),
+            Token::True => f.write_str("TRUE true null"),
+            Token::Var => f.write_str("VAR var null"),
+            Token::While => f.write_str("WHILE while null"),
             Token::EOF => f.write_str("EOF  null"),
         }
     }
@@ -319,8 +379,10 @@ impl Iterator for TokenIterator {
                     let x = self.remaining[size_of_str];
                     if *b"\"" == [x] {
                         let bytes = self.remaining.slice(0..size_of_str);
-                        // TODO: remove unwrap.
-                        let string = String::from_str(str::from_utf8(&bytes).unwrap()).unwrap();
+                        // TODO: remove unwrap and unsafe
+                        let string = unsafe {
+                            String::from_str(std::str::from_utf8_unchecked(&bytes)).unwrap()
+                        };
                         self.remaining = self.remaining.slice(size_of_str + 1..);
                         return Some(Ok(Token::StringLiteral(string)));
                     } else {
@@ -371,9 +433,14 @@ impl Iterator for TokenIterator {
                         break;
                     }
                 }
-                let token = Some(Ok(Token::Identifier(
-                    self.remaining.slice(0..identifier_len),
-                )));
+                let bytes = self.remaining.slice(0..identifier_len);
+                let utf_bytes = unsafe { std::str::from_utf8_unchecked(bytes.as_ref()) };
+                let token = if KEYWORDS.contains_key(utf_bytes) {
+                    let x = KEYWORDS.get(utf_bytes).unwrap().clone();
+                    Some(Ok(x))
+                } else {
+                    Some(Ok(Token::Identifier(bytes)))
+                };
                 self.remaining = self.remaining.slice(identifier_len..);
                 token
             }
