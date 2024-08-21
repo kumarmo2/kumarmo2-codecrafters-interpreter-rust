@@ -54,6 +54,7 @@ impl Parser {
         let expr = match &self.curr_token {
             Token::True => Expression::BooleanLiteral(true),
             Token::False => Expression::BooleanLiteral(false),
+            Token::NumberLiteral(val, _) => Expression::NumberLiteral(*val),
             Token::Nil => Expression::NilLiteral,
             _ => unimplemented!(),
         };

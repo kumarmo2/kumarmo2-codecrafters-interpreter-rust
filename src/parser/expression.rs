@@ -1,6 +1,7 @@
 pub(crate) enum Expression {
     NilLiteral,
     BooleanLiteral(bool),
+    NumberLiteral(f64),
 }
 
 impl std::fmt::Debug for Expression {
@@ -8,6 +9,7 @@ impl std::fmt::Debug for Expression {
         match self {
             Expression::NilLiteral => write!(f, "nil"),
             Expression::BooleanLiteral(v) => write!(f, "{}", v),
+            Expression::NumberLiteral(v) => write!(f, "{:?}", v),
         }
     }
 }
