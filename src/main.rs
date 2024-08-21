@@ -2,9 +2,11 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
+use parser::expression::Precedence;
+use parser::Parser;
 use token::Scanner;
-use token::Token;
 
+pub(crate) mod parser;
 pub(crate) mod token;
 
 fn main() {
@@ -16,16 +18,15 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
+    let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+        writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+        String::new()
+    });
 
     match command.as_str() {
         "tokenize" => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
-            writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
-
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-                String::new()
-            });
+            // writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
 
             let mut found_lexical_error = false;
             // Uncomment this block to pass the first stage
@@ -46,6 +47,11 @@ fn main() {
             if found_lexical_error {
                 std::process::exit(65);
             }
+        }
+        "parse" => {
+            let mut parser = Parser::from_source(file_contents).unwrap();
+            let expr = parser.parse_expression(Precedence::Lowest).unwrap();
+            println!("{:?}", expr);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();

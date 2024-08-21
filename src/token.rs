@@ -1,10 +1,7 @@
 #![allow(dead_code)]
 
 use core::str;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::{collections::HashMap, str::FromStr};
 
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -72,7 +69,7 @@ pub(crate) enum Token {
     LESSEQUAL,    // <=
     GREATER,      // >
     GREATEREQUAL, // >=
-    StringLiteral(String),
+    StringLiteral(Bytes),
     NumberLiteral(f64, Bytes),
     Identifier(Bytes),
     And,
@@ -117,7 +114,12 @@ impl std::fmt::Debug for Token {
             Token::GREATEREQUAL => f.write_str("GREATER_EQUAL >= null"),
             Token::SLASH => f.write_str("SLASH / null"),
             Token::COMMENT(_) => f.write_str("COMMENT  null"),
-            Token::StringLiteral(s) => f.write_fmt(format_args!("STRING \"{s}\" {s}")),
+            Token::StringLiteral(s) => {
+                // TODO: remove unsafe
+                let string =
+                    unsafe { String::from_str(std::str::from_utf8_unchecked(&s)).unwrap() };
+                f.write_fmt(format_args!("STRING \"{string}\" {string}"))
+            }
             Token::NumberLiteral(number, bytes) => f.write_fmt(format_args!(
                 "NUMBER {} {:?}",
                 String::from_str(std::str::from_utf8(bytes.as_ref()).unwrap()).unwrap(),
@@ -380,11 +382,8 @@ impl Iterator for TokenIterator {
                     if *b"\"" == [x] {
                         let bytes = self.remaining.slice(0..size_of_str);
                         // TODO: remove unwrap and unsafe
-                        let string = unsafe {
-                            String::from_str(std::str::from_utf8_unchecked(&bytes)).unwrap()
-                        };
                         self.remaining = self.remaining.slice(size_of_str + 1..);
-                        return Some(Ok(Token::StringLiteral(string)));
+                        return Some(Ok(Token::StringLiteral(bytes.clone())));
                     } else {
                         size_of_str += 1;
                     }
