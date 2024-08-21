@@ -1,7 +1,10 @@
+use bytes::Bytes;
+
 pub(crate) enum Expression {
     NilLiteral,
     BooleanLiteral(bool),
     NumberLiteral(f64),
+    StringLiteral(Bytes),
 }
 
 impl std::fmt::Debug for Expression {
@@ -10,6 +13,10 @@ impl std::fmt::Debug for Expression {
             Expression::NilLiteral => write!(f, "nil"),
             Expression::BooleanLiteral(v) => write!(f, "{}", v),
             Expression::NumberLiteral(v) => write!(f, "{:?}", v),
+            Expression::StringLiteral(bytes) => {
+                let str = unsafe { std::str::from_utf8_unchecked(bytes.as_ref()) };
+                write!(f, "{}", str)
+            }
         }
     }
 }
