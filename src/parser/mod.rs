@@ -162,7 +162,9 @@ impl Parser {
                 | Token::LESS
                 | Token::LESSEQUAL
                 | Token::GREATER
-                | Token::GREATEREQUAL => {
+                | Token::GREATEREQUAL
+                | Token::EQUALEQUAL
+                | Token::BANGEQUAL => {
                     self.advance_token();
                     let expr = self.parse_infix_operator_expression(left_expr)?;
                     expr
