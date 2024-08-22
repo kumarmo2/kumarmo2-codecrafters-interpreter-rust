@@ -69,7 +69,9 @@ impl Interpreter {
             crate::parser::expression::Expression::StringLiteral(bytes) => {
                 Object::String(bytes.clone())
             }
-            crate::parser::expression::Expression::GroupedExpression(_) => todo!(),
+            crate::parser::expression::Expression::GroupedExpression(expr) => {
+                self.evaluate_expression(expr.as_ref())?
+            }
             crate::parser::expression::Expression::PrefixExpression { .. } => todo!(),
             crate::parser::expression::Expression::InfixExpression {
                 operator,
