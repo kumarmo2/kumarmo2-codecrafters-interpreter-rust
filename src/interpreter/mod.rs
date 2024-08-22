@@ -16,6 +16,17 @@ pub(crate) enum Object {
     Nil,
 }
 
+impl Object {
+    pub(crate) fn get_truthy_value(&self) -> bool {
+        match self {
+            Object::Number(_) => true,
+            Object::Boolean(v) => *v,
+            Object::String(_) => true,
+            Object::Nil => false,
+        }
+    }
+}
+
 impl std::fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -36,12 +47,16 @@ pub(crate) struct Interpreter {
 
 pub(crate) enum EvaluationError {
     ParseError(ParseError),
+    ExpectedSomethingButGotOther { expected: &'static str, got: Object },
 }
 
 impl std::fmt::Debug for EvaluationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EvaluationError::ParseError(e) => write!(f, "{:?}", e),
+            EvaluationError::ExpectedSomethingButGotOther { expected, got } => {
+                write!(f, "expected: {expected}, but got: {got}")
+            }
         }
     }
 }
@@ -61,6 +76,28 @@ impl Interpreter {
         todo!()
     }
 
+    fn evaluate_prefix_expression(
+        &mut self,
+        operator: Token,
+        expression: &Expression,
+    ) -> Result<Object, EvaluationError> {
+        let value = self.evaluate_expression(expression)?;
+        let object = match operator {
+            Token::BANG => Object::Boolean(!value.get_truthy_value()),
+            Token::MINUS => match value {
+                Object::Number(v) => Object::Number(-v),
+                object => {
+                    return Err(EvaluationError::ExpectedSomethingButGotOther {
+                        expected: "number",
+                        got: object,
+                    })
+                }
+            },
+            t => unreachable!("token: {}", t),
+        };
+        Ok(object)
+    }
+
     fn evaluate_expression(&mut self, expression: &Expression) -> Result<Object, EvaluationError> {
         let val = match expression {
             crate::parser::expression::Expression::NilLiteral => Object::Nil,
@@ -72,7 +109,9 @@ impl Interpreter {
             crate::parser::expression::Expression::GroupedExpression(expr) => {
                 self.evaluate_expression(expr.as_ref())?
             }
-            crate::parser::expression::Expression::PrefixExpression { .. } => todo!(),
+            crate::parser::expression::Expression::PrefixExpression { operator, expr } => {
+                self.evaluate_prefix_expression(operator.clone(), expr.as_ref())?
+            }
             crate::parser::expression::Expression::InfixExpression {
                 operator,
                 left_expr,
