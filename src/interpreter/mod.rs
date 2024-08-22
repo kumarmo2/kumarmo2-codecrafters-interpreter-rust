@@ -150,7 +150,14 @@ impl Interpreter {
                 _ => Ok(Object::Boolean(false)),
             },
             Token::BANGEQUAL => Ok(Object::Boolean(true)),
-            Token::PLUS | Token::MINUS | Token::SLASH | Token::STAR => {
+            Token::PLUS
+            | Token::MINUS
+            | Token::SLASH
+            | Token::STAR
+            | Token::LESS
+            | Token::LESSEQUAL
+            | Token::GREATER
+            | Token::GREATEREQUAL => {
                 Err(EvaluationError::Adhoc(format!("Operands must be numbers.")))
             }
             _ => Err(EvaluationError::InvalidOperation {
