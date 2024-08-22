@@ -150,6 +150,9 @@ impl Interpreter {
                 _ => Ok(Object::Boolean(false)),
             },
             Token::BANGEQUAL => Ok(Object::Boolean(true)),
+            Token::PLUS | Token::MINUS | Token::SLASH | Token::STAR => {
+                Err(EvaluationError::Adhoc(format!("Operands must be numbers.")))
+            }
             _ => Err(EvaluationError::InvalidOperation {
                 left: left.clone(),
                 operator: operator,
