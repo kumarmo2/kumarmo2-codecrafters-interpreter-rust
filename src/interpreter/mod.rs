@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_variables)]
-use bytes::Bytes;
+use std::{io::Read, string};
+
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::{
     parser::{
@@ -9,6 +11,7 @@ use crate::{
     token::Token,
 };
 
+#[derive(Clone)]
 pub(crate) enum Object {
     Number(f64),
     Boolean(bool),
@@ -47,7 +50,15 @@ pub(crate) struct Interpreter {
 
 pub(crate) enum EvaluationError {
     ParseError(ParseError),
-    ExpectedSomethingButGotOther { expected: &'static str, got: Object },
+    ExpectedSomethingButGotOther {
+        expected: &'static str,
+        got: Object,
+    },
+    InvalidOperation {
+        left: Object,
+        operator: Token,
+        right: Object,
+    },
 }
 
 impl std::fmt::Debug for EvaluationError {
@@ -57,6 +68,14 @@ impl std::fmt::Debug for EvaluationError {
             EvaluationError::ExpectedSomethingButGotOther { expected, got } => {
                 write!(f, "expected: {expected}, but got: {got}")
             }
+            EvaluationError::InvalidOperation {
+                left,
+                operator,
+                right,
+            } => write!(
+                f,
+                "InvalidOperation: {operator}, left: {left}, right: {right}"
+            ),
         }
     }
 }
@@ -67,6 +86,20 @@ impl Interpreter {
         Ok(Self { parser })
     }
 
+    fn evaluate_numeric_infix_operation(
+        operator: Token,
+        left_value: f64,
+        right_value: f64,
+    ) -> Object {
+        match operator {
+            Token::STAR => Object::Number(left_value * right_value),
+            Token::SLASH => Object::Number(left_value / right_value),
+            Token::PLUS => Object::Number(left_value + right_value),
+            Token::MINUS => Object::Number(left_value - right_value),
+            token => unimplemented!("{token}"),
+        }
+    }
+
     fn evaluate_infix_expression(
         &mut self,
         operator: Token,
@@ -74,34 +107,65 @@ impl Interpreter {
         right_expr: &Expression,
     ) -> Result<Object, EvaluationError> {
         let left_value = self.evaluate_expression(left_expr)?;
-        let left_value = match left_value {
-            Object::Number(v) => v,
-            object => {
-                return Err(EvaluationError::ExpectedSomethingButGotOther {
-                    expected: "number",
-                    got: object,
-                })
-            }
-        };
         let right_value = self.evaluate_expression(right_expr)?;
-        let right_value = match right_value {
-            Object::Number(v) => v,
-            object => {
+        match (&left_value, &right_value) {
+            (Object::Number(left), Object::Number(right)) => Ok(
+                Interpreter::evaluate_numeric_infix_operation(operator, *left, *right),
+            ),
+            (Object::String(left), Object::String(right)) => {
+                let mut buf = BytesMut::with_capacity(left.len() + right.len());
+                buf.put(left.as_ref());
+                buf.put(right.as_ref());
+                let bytes = buf.freeze();
+                Ok(Object::String(bytes))
+            }
+            (Object::Number(left), right) => {
                 return Err(EvaluationError::ExpectedSomethingButGotOther {
                     expected: "number",
-                    got: object,
+                    got: right.clone(),
                 })
             }
-        };
-        // TODO: add check for divide by 0.
-        let value = match operator {
-            Token::STAR => Object::Number(left_value * right_value),
-            Token::SLASH => Object::Number(left_value / right_value),
-            Token::PLUS => Object::Number(left_value + right_value),
-            Token::MINUS => Object::Number(left_value - right_value),
-            token => unimplemented!("{token}"),
-        };
-        Ok(value)
+            (Object::String(left), right) => {
+                return Err(EvaluationError::ExpectedSomethingButGotOther {
+                    expected: "string",
+                    got: right.clone(),
+                })
+            }
+            _ => {
+                return Err(EvaluationError::InvalidOperation {
+                    left: left_value,
+                    operator: operator,
+                    right: right_value,
+                })
+            }
+        }
+        // let left_value = match left_value {
+        //     Object::Number(v) => v,
+        //     object => {
+        //         return Err(EvaluationError::ExpectedSomethingButGotOther {
+        //             expected: "number",
+        //             got: object,
+        //         })
+        //     }
+        // };
+        // let right_value = match right_value {
+        //     Object::Number(v) => v,
+        //     object => {
+        //         return Err(EvaluationError::ExpectedSomethingButGotOther {
+        //             expected: "number",
+        //             got: object,
+        //         })
+        //     }
+        // };
+        // // TODO: add check for divide by 0.
+        // let value = match operator {
+        //     Token::STAR => Object::Number(left_value * right_value),
+        //     Token::SLASH => Object::Number(left_value / right_value),
+        //     Token::PLUS => Object::Number(left_value + right_value),
+        //     Token::MINUS => Object::Number(left_value - right_value),
+        //     token => unimplemented!("{token}"),
+        // };
+        // Ok(value)
     }
 
     fn evaluate_prefix_expression(
