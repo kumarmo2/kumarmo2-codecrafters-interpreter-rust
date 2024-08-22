@@ -12,13 +12,24 @@ pub(crate) struct Parser {
     peek_token: Token,
 }
 
-#[derive(Debug)]
 pub(crate) enum ParseError {
     EmptySource,
     ImpossibleError,
     LexicalError(LexicalError),
     ExpectedTokenNotFound { expected: &'static str, got: Token },
     UnmatchedParentheses,
+}
+
+impl std::fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::EmptySource => write!(f, "EmptySource"),
+            ParseError::ImpossibleError => write!(f, "ImpossibleError"),
+            ParseError::LexicalError(e) => write!(f, "{:?}", e),
+            ParseError::ExpectedTokenNotFound { .. } => write!(f, "ExpectedTokenNotFound"),
+            ParseError::UnmatchedParentheses => write!(f, "Error: Unmatched parentheses."),
+        }
+    }
 }
 
 type ParseResult<T> = Result<T, ParseError>;

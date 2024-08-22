@@ -53,11 +53,18 @@ fn main() {
         }
         "parse" => {
             let file_contents = read_contents();
+            let mut found_err = false;
             let mut parser = Parser::from_source(file_contents).unwrap();
             match parser.parse_expression(Precedence::Lowest) {
                 Ok(expr) => println!("{:?}", expr),
-                Err(_) => todo!(),
+                Err(e) => {
+                    found_err = true;
+                    eprintln!("{:?}", e);
+                }
             };
+            if found_err {
+                std::process::exit(65);
+            }
             // println!("{:?}", expr);
         }
         _ => {
