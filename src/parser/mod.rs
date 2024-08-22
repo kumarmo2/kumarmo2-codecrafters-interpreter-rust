@@ -128,22 +128,10 @@ impl Parser {
         precendence: Precedence,
     ) -> Result<Expression, ParseError> {
         let mut left_expr = match self.curr_token.clone() {
-            Token::True => {
-                // self.advance_token();
-                Expression::BooleanLiteral(true)
-            }
-            Token::False => {
-                // self.advance_token();
-                Expression::BooleanLiteral(false)
-            }
-            Token::NumberLiteral(val, _) => {
-                // self.advance_token();
-                Expression::NumberLiteral(val)
-            }
-            Token::StringLiteral(bytes) => {
-                // self.advance_token();
-                Expression::StringLiteral(bytes.clone())
-            }
+            Token::True => Expression::BooleanLiteral(true),
+            Token::False => Expression::BooleanLiteral(false),
+            Token::NumberLiteral(val, _) => Expression::NumberLiteral(val),
+            Token::StringLiteral(bytes) => Expression::StringLiteral(bytes.clone()),
             Token::LParen => self.parse_prefix_grouped_expression()?,
             Token::MINUS | Token::BANG => self.parse_prefix_operator_expression()?,
             Token::Nil => {
