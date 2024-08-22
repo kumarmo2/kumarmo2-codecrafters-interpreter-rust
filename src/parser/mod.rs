@@ -155,7 +155,14 @@ impl Parser {
                 break;
             }
             left_expr = match self.peek_token.clone() {
-                Token::PLUS | Token::MINUS | Token::SLASH | Token::STAR => {
+                Token::PLUS
+                | Token::MINUS
+                | Token::SLASH
+                | Token::STAR
+                | Token::LESS
+                | Token::LESSEQUAL
+                | Token::GREATER
+                | Token::GREATEREQUAL => {
                     self.advance_token();
                     let expr = self.parse_infix_operator_expression(left_expr)?;
                     expr
