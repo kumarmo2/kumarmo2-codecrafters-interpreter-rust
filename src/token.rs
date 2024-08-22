@@ -91,6 +91,62 @@ pub(crate) enum Token {
     EOF,
 }
 
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::LParen => f.write_str("("),
+            Token::RParen => f.write_str(")"),
+            Token::LBrace => f.write_str("{"),
+            Token::RBrace => f.write_str("}"),
+            Token::STAR => f.write_str("*"),
+            Token::DOT => f.write_str("."),
+            Token::COMMA => f.write_str(","),
+            Token::PLUS => f.write_str("+"),
+            Token::MINUS => f.write_str("-"),
+            Token::SEMICOLON => f.write_str(";"),
+            Token::EQUAL => f.write_str("="),
+            Token::EQUALEQUAL => f.write_str("=="),
+            Token::BANG => f.write_str("!"),
+            Token::BANGEQUAL => f.write_str("!="),
+            Token::LESS => f.write_str("<"),
+            Token::LESSEQUAL => f.write_str("<="),
+            Token::GREATER => f.write_str(">"),
+            Token::GREATEREQUAL => f.write_str(">="),
+            Token::SLASH => f.write_str("/"),
+            Token::COMMENT(_) => unimplemented!("Will not display comment"),
+            Token::StringLiteral(s) => {
+                // TODO: remove unsafe
+                let string =
+                    unsafe { String::from_str(std::str::from_utf8_unchecked(&s)).unwrap() };
+                f.write_fmt(format_args!("{string}"))
+            }
+            Token::NumberLiteral(number, _) => f.write_fmt(format_args!("{}", number)),
+            Token::Identifier(identifier_bytes) => f.write_fmt(format_args!(
+                // TODO: remove unwraps.
+                "{}",
+                String::from_str(std::str::from_utf8(identifier_bytes.as_ref()).unwrap()).unwrap()
+            )),
+            Token::And => f.write_str("and"),
+            Token::Class => f.write_str("class"),
+            Token::Else => f.write_str("else"),
+            Token::False => f.write_str("false"),
+            Token::For => f.write_str("for"),
+            Token::Fun => f.write_str("fun"),
+            Token::If => f.write_str("if"),
+            Token::Nil => f.write_str("nil"),
+            Token::Or => f.write_str("or"),
+            Token::Print => f.write_str("print"),
+            Token::Return => f.write_str("return"),
+            Token::Super => f.write_str("super"),
+            Token::This => f.write_str("this"),
+            Token::True => f.write_str("true"),
+            Token::Var => f.write_str("var"),
+            Token::While => f.write_str("while"),
+            Token::EOF => f.write_str(""),
+        }
+    }
+}
+
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

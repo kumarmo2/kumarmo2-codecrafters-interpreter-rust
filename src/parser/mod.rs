@@ -83,6 +83,16 @@ impl Parser {
         Ok(Expression::GroupedExpression(Box::new(expr)))
     }
 
+    fn parse_prefix_operator_expression(&mut self) -> ParseResult<Expression> {
+        let operator = self.curr_token.clone();
+        self.advance_token();
+        let expression = self.parse_expression(Precedence::Lowest)?;
+        Ok(Expression::PrefixExpression {
+            operator: operator,
+            expr: Box::new(expression),
+        })
+    }
+
     #[allow(unused_variables)]
     pub(crate) fn parse_expression(
         &mut self,
@@ -94,6 +104,7 @@ impl Parser {
             Token::NumberLiteral(val, _) => Expression::NumberLiteral(*val),
             Token::StringLiteral(bytes) => Expression::StringLiteral(bytes.clone()),
             Token::LParen => self.parse_prefix_grouped_expression()?,
+            Token::MINUS | Token::BANG => self.parse_prefix_operator_expression()?,
             Token::Nil => Expression::NilLiteral,
             _ => unimplemented!(),
         };

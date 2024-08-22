@@ -65,7 +65,6 @@ fn main() {
             if found_err {
                 std::process::exit(65);
             }
-            // println!("{:?}", expr);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
