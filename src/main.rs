@@ -2,10 +2,12 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
+use interpreter::Interpreter;
 use parser::expression::Precedence;
 use parser::Parser;
 use token::Scanner;
 
+pub(crate) mod interpreter;
 pub(crate) mod parser;
 pub(crate) mod token;
 
@@ -72,6 +74,23 @@ fn main() {
             };
             if found_err {
                 std::process::exit(65);
+            }
+        }
+        "evaluate" => {
+            let file_contents = read_contents();
+            let mut interpreter = match Interpreter::from_source(file_contents) {
+                Ok(interpreter) => interpreter,
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    std::process::exit(65)
+                }
+            };
+            match interpreter.evaluate() {
+                Ok(object) => println!("{}", object),
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    std::process::exit(65);
+                }
             }
         }
         _ => {
