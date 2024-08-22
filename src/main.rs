@@ -89,7 +89,7 @@ fn main() {
                 Ok(object) => println!("{}", object),
                 Err(e) => {
                     eprintln!("{:?}", e);
-                    std::process::exit(65);
+                    std::process::exit(70);
                 }
             }
         }

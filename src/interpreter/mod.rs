@@ -54,6 +54,7 @@ pub(crate) enum EvaluationError {
         expected: &'static str,
         got: Object,
     },
+    Adhoc(String),
     InvalidOperation {
         left: Object,
         operator: Token,
@@ -76,6 +77,7 @@ impl std::fmt::Debug for EvaluationError {
                 f,
                 "InvalidOperation: {operator}, left: {left}, right: {right}"
             ),
+            EvaluationError::Adhoc(str) => write!(f, "{str}"),
         }
     }
 }
@@ -180,18 +182,6 @@ impl Interpreter {
                     right: right_value,
                 }),
             },
-            // (Object::Number(left), right) => {
-            //     return Err(EvaluationError::ExpectedSomethingButGotOther {
-            //         expected: "number",
-            //         got: right.clone(),
-            //     })
-            // }
-            // (Object::String(left), right) => {
-            //     return Err(EvaluationError::ExpectedSomethingButGotOther {
-            //         expected: "string",
-            //         got: right.clone(),
-            //     })
-            // }
             _ => Interpreter::evaluate_infix_expression_for_different_types_of_operands(
                 operator,
                 &left_value,
@@ -211,10 +201,10 @@ impl Interpreter {
             Token::MINUS => match value {
                 Object::Number(v) => Object::Number(-v),
                 object => {
-                    return Err(EvaluationError::ExpectedSomethingButGotOther {
-                        expected: "number",
-                        got: object,
-                    })
+                    return Err(EvaluationError::Adhoc(format!(
+                        "Operand must be a number.\n[line {}]",
+                        self.parser.get_curr_line()
+                    )))
                 }
             },
             t => unreachable!("token: {}", t),

@@ -69,6 +69,10 @@ impl Parser {
         })
     }
 
+    pub(crate) fn get_curr_line(&self) -> u32 {
+        self._token_iterator.get_curr_line()
+    }
+
     fn advance_token(&mut self) {
         let should_forward_peek_token = if let Token::EOF = self.peek_token {
             false
