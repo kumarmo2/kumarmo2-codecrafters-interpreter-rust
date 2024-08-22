@@ -73,7 +73,35 @@ impl Interpreter {
         left_expr: &Expression,
         right_expr: &Expression,
     ) -> Result<Object, EvaluationError> {
-        todo!()
+        let left_value = self.evaluate_expression(left_expr)?;
+        let left_value = match left_value {
+            Object::Number(v) => v,
+            object => {
+                return Err(EvaluationError::ExpectedSomethingButGotOther {
+                    expected: "number",
+                    got: object,
+                })
+            }
+        };
+        let right_value = self.evaluate_expression(right_expr)?;
+        let right_value = match right_value {
+            Object::Number(v) => v,
+            object => {
+                return Err(EvaluationError::ExpectedSomethingButGotOther {
+                    expected: "number",
+                    got: object,
+                })
+            }
+        };
+        // TODO: add check for divide by 0.
+        let value = match operator {
+            Token::STAR => Object::Number(left_value * right_value),
+            Token::SLASH => Object::Number(left_value / right_value),
+            Token::PLUS => Object::Number(left_value + right_value),
+            Token::MINUS => Object::Number(left_value - right_value),
+            token => unimplemented!("{token}"),
+        };
+        Ok(value)
     }
 
     fn evaluate_prefix_expression(
