@@ -8,7 +8,7 @@ use crate::{
         expression::{Expression, Precedence},
         ParseError, Parser,
     },
-    token::Token,
+    token::{self, Token},
 };
 
 #[derive(Clone)]
@@ -86,6 +86,37 @@ impl Interpreter {
         Ok(Self { parser })
     }
 
+    fn evaluate_string_infix_operation(
+        operator: Token,
+        left: &Bytes,
+        right: &Bytes,
+    ) -> Result<Object, EvaluationError> {
+        match operator.clone() {
+            Token::PLUS => {
+                let mut buf = BytesMut::with_capacity(left.len() + right.len());
+                buf.put(left.as_ref());
+                buf.put(right.as_ref());
+                let bytes = buf.freeze();
+                Ok(Object::String(bytes))
+            }
+            Token::EQUALEQUAL => {
+                let left = unsafe { std::str::from_utf8_unchecked(left.as_ref()) };
+                let right = unsafe { std::str::from_utf8_unchecked(right.as_ref()) };
+                Ok(Object::Boolean(left == right))
+            }
+            Token::BANGEQUAL => {
+                let left = unsafe { std::str::from_utf8_unchecked(left.as_ref()) };
+                let right = unsafe { std::str::from_utf8_unchecked(right.as_ref()) };
+                Ok(Object::Boolean(left != right))
+            }
+            token => Err(EvaluationError::InvalidOperation {
+                left: Object::String(left.clone()),
+                operator,
+                right: Object::String(right.clone()),
+            }),
+        }
+    }
+
     fn evaluate_numeric_infix_operation(
         operator: Token,
         left_value: f64,
@@ -106,6 +137,25 @@ impl Interpreter {
         }
     }
 
+    fn evaluate_infix_expression_for_different_types_of_operands(
+        operator: Token,
+        left: &Object,
+        right: &Object,
+    ) -> Result<Object, EvaluationError> {
+        match operator {
+            Token::EQUALEQUAL => match (left, right) {
+                (Object::Nil, Object::Nil) => Ok(Object::Boolean(true)),
+                _ => Ok(Object::Boolean(false)),
+            },
+            Token::BANGEQUAL => Ok(Object::Boolean(true)),
+            _ => Err(EvaluationError::InvalidOperation {
+                left: left.clone(),
+                operator: operator,
+                right: right.clone(),
+            }),
+        }
+    }
+
     fn evaluate_infix_expression(
         &mut self,
         operator: Token,
@@ -119,59 +169,35 @@ impl Interpreter {
                 Interpreter::evaluate_numeric_infix_operation(operator, *left, *right),
             ),
             (Object::String(left), Object::String(right)) => {
-                let mut buf = BytesMut::with_capacity(left.len() + right.len());
-                buf.put(left.as_ref());
-                buf.put(right.as_ref());
-                let bytes = buf.freeze();
-                Ok(Object::String(bytes))
+                Interpreter::evaluate_string_infix_operation(operator, left, right)
             }
-            (Object::Number(left), right) => {
-                return Err(EvaluationError::ExpectedSomethingButGotOther {
-                    expected: "number",
-                    got: right.clone(),
-                })
-            }
-            (Object::String(left), right) => {
-                return Err(EvaluationError::ExpectedSomethingButGotOther {
-                    expected: "string",
-                    got: right.clone(),
-                })
-            }
-            _ => {
-                return Err(EvaluationError::InvalidOperation {
+            (Object::Boolean(left), Object::Boolean(right)) => match operator.clone() {
+                Token::EQUALEQUAL => Ok(Object::Boolean(*left == *right)),
+                Token::BANGEQUAL => Ok(Object::Boolean(*left != *right)),
+                token => Err(EvaluationError::InvalidOperation {
                     left: left_value,
-                    operator: operator,
+                    operator: operator.clone(),
                     right: right_value,
-                })
-            }
+                }),
+            },
+            // (Object::Number(left), right) => {
+            //     return Err(EvaluationError::ExpectedSomethingButGotOther {
+            //         expected: "number",
+            //         got: right.clone(),
+            //     })
+            // }
+            // (Object::String(left), right) => {
+            //     return Err(EvaluationError::ExpectedSomethingButGotOther {
+            //         expected: "string",
+            //         got: right.clone(),
+            //     })
+            // }
+            _ => Interpreter::evaluate_infix_expression_for_different_types_of_operands(
+                operator,
+                &left_value,
+                &right_value,
+            ),
         }
-        // let left_value = match left_value {
-        //     Object::Number(v) => v,
-        //     object => {
-        //         return Err(EvaluationError::ExpectedSomethingButGotOther {
-        //             expected: "number",
-        //             got: object,
-        //         })
-        //     }
-        // };
-        // let right_value = match right_value {
-        //     Object::Number(v) => v,
-        //     object => {
-        //         return Err(EvaluationError::ExpectedSomethingButGotOther {
-        //             expected: "number",
-        //             got: object,
-        //         })
-        //     }
-        // };
-        // // TODO: add check for divide by 0.
-        // let value = match operator {
-        //     Token::STAR => Object::Number(left_value * right_value),
-        //     Token::SLASH => Object::Number(left_value / right_value),
-        //     Token::PLUS => Object::Number(left_value + right_value),
-        //     Token::MINUS => Object::Number(left_value - right_value),
-        //     token => unimplemented!("{token}"),
-        // };
-        // Ok(value)
     }
 
     fn evaluate_prefix_expression(
