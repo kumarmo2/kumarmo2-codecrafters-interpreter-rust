@@ -16,7 +16,11 @@ pub(crate) enum ParseError {
     EmptySource,
     ImpossibleError,
     LexicalError(LexicalError),
-    ExpectedTokenNotFound { expected: &'static str, got: Token },
+    ExpectedTokenNotFound {
+        expected: &'static str,
+        got: Token,
+        line: u32,
+    },
     UnmatchedParentheses,
 }
 
@@ -26,7 +30,11 @@ impl std::fmt::Debug for ParseError {
             ParseError::EmptySource => write!(f, "EmptySource"),
             ParseError::ImpossibleError => write!(f, "ImpossibleError"),
             ParseError::LexicalError(e) => write!(f, "{:?}", e),
-            ParseError::ExpectedTokenNotFound { .. } => write!(f, "ExpectedTokenNotFound"),
+            ParseError::ExpectedTokenNotFound {
+                line,
+                got,
+                expected,
+            } => write!(f, "[line {line}] Error at '{got}': expect {expected}"),
             ParseError::UnmatchedParentheses => write!(f, "Error: Unmatched parentheses."),
         }
     }
@@ -80,6 +88,7 @@ impl Parser {
             return Err(ParseError::ExpectedTokenNotFound {
                 expected: "expression",
                 got: Token::RParen,
+                line: self._token_iterator.get_curr_line(),
             });
         }
         self.advance_token();
@@ -138,7 +147,13 @@ impl Parser {
                 self.advance_token();
                 Expression::NilLiteral
             }
-            _ => unimplemented!(),
+            t => {
+                return Err(ParseError::ExpectedTokenNotFound {
+                    expected: "expression",
+                    got: t,
+                    line: self._token_iterator.get_curr_line(),
+                })
+            }
         };
 
         loop {

@@ -250,6 +250,9 @@ pub(crate) struct TokenIterator {
 }
 
 impl TokenIterator {
+    pub(crate) fn get_curr_line(&self) -> u32 {
+        self.line
+    }
     fn skip_whitespaces(&mut self) {
         loop {
             if self.remaining.len() == 0 {
