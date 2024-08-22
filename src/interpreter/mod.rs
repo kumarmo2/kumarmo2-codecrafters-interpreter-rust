@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-use std::{io::Read, string};
+use std::{borrow::Borrow, io::Read, string};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -96,6 +96,12 @@ impl Interpreter {
             Token::SLASH => Object::Number(left_value / right_value),
             Token::PLUS => Object::Number(left_value + right_value),
             Token::MINUS => Object::Number(left_value - right_value),
+            Token::EQUALEQUAL => Object::Boolean(left_value == right_value),
+            Token::BANGEQUAL => Object::Boolean(left_value != right_value),
+            Token::LESS => Object::Boolean(left_value < right_value),
+            Token::LESSEQUAL => Object::Boolean(left_value <= right_value),
+            Token::GREATER => Object::Boolean(left_value > right_value),
+            Token::GREATEREQUAL => Object::Boolean(left_value >= right_value),
             token => unimplemented!("{token}"),
         }
     }
