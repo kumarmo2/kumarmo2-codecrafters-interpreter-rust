@@ -5,6 +5,7 @@ pub(crate) enum Expression {
     BooleanLiteral(bool),
     NumberLiteral(f64),
     StringLiteral(Bytes),
+    GroupedExpression(Box<Expression>),
 }
 
 impl std::fmt::Debug for Expression {
@@ -17,6 +18,7 @@ impl std::fmt::Debug for Expression {
                 let str = unsafe { std::str::from_utf8_unchecked(bytes.as_ref()) };
                 write!(f, "{}", str)
             }
+            Expression::GroupedExpression(e) => write!(f, "(group {:?})", e),
         }
     }
 }

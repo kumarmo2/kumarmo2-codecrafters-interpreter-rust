@@ -18,10 +18,13 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
-    let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-        writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-        String::new()
-    });
+    let read_contents = || {
+        let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+            writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+            String::new()
+        });
+        file_contents
+    };
 
     match command.as_str() {
         "tokenize" => {
@@ -29,7 +32,7 @@ fn main() {
             // writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
 
             let mut found_lexical_error = false;
-            // Uncomment this block to pass the first stage
+            let file_contents = read_contents();
             if !file_contents.is_empty() {
                 let scanner = Scanner::new(file_contents);
                 for token in scanner.iter() {
@@ -49,9 +52,13 @@ fn main() {
             }
         }
         "parse" => {
+            let file_contents = read_contents();
             let mut parser = Parser::from_source(file_contents).unwrap();
-            let expr = parser.parse_expression(Precedence::Lowest).unwrap();
-            println!("{:?}", expr);
+            match parser.parse_expression(Precedence::Lowest) {
+                Ok(expr) => println!("{:?}", expr),
+                Err(_) => todo!(),
+            };
+            // println!("{:?}", expr);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
