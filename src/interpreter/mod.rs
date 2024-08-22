@@ -1,4 +1,6 @@
 #![allow(dead_code, unused_variables)]
+use bytes::Bytes;
+
 use crate::{
     parser::{
         expression::{Expression, Precedence},
@@ -10,6 +12,7 @@ use crate::{
 pub(crate) enum Object {
     Number(f64),
     Boolean(bool),
+    String(Bytes),
     Nil,
 }
 
@@ -19,6 +22,10 @@ impl std::fmt::Display for Object {
             Object::Number(v) => write!(f, "{}", v),
             Object::Boolean(v) => write!(f, "{}", v),
             Object::Nil => write!(f, "nil"),
+            Object::String(bytes) => {
+                let str = unsafe { std::str::from_utf8_unchecked(bytes.as_ref()) };
+                write!(f, "{}", str)
+            }
         }
     }
 }
@@ -59,7 +66,9 @@ impl Interpreter {
             crate::parser::expression::Expression::NilLiteral => Object::Nil,
             crate::parser::expression::Expression::BooleanLiteral(v) => Object::Boolean(*v),
             crate::parser::expression::Expression::NumberLiteral(v) => Object::Number(*v),
-            crate::parser::expression::Expression::StringLiteral(_) => todo!(),
+            crate::parser::expression::Expression::StringLiteral(bytes) => {
+                Object::String(bytes.clone())
+            }
             crate::parser::expression::Expression::GroupedExpression(_) => todo!(),
             crate::parser::expression::Expression::PrefixExpression { .. } => todo!(),
             crate::parser::expression::Expression::InfixExpression {
