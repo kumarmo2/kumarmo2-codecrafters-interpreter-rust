@@ -76,19 +76,19 @@ impl Parser {
     }
 
     fn parse_prefix_grouped_expression(&mut self) -> ParseResult<Expression> {
-        self.advance_token();
-        if let Token::RParen = self.curr_token {
+        if let Token::RParen = self.peek_token {
             return Err(ParseError::ExpectedTokenNotFound {
                 expected: "expression",
                 got: Token::RParen,
             });
         }
+        self.advance_token();
 
         let expr = self.parse_expression(Precedence::Lowest)?;
         let Token::RParen = self.peek_token else {
             return Err(ParseError::UnmatchedParentheses);
         };
-        // self.advance_token();
+        self.advance_token();
         Ok(Expression::GroupedExpression(Box::new(expr)))
     }
 
@@ -96,7 +96,6 @@ impl Parser {
         let operator = self.curr_token.clone();
         self.advance_token();
         let expression = self.parse_expression(Precedence::Prefix)?;
-        // self.advance_token();
         Ok(Expression::PrefixExpression {
             operator: operator,
             expr: Box::new(expression),

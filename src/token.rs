@@ -98,6 +98,7 @@ impl Token {
         match self {
             Token::PLUS | Token::MINUS => Precedence::Sum,
             Token::SLASH | Token::STAR => Precedence::Product,
+            // Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }

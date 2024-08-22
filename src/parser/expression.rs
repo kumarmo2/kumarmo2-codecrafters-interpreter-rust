@@ -50,6 +50,7 @@ pub(crate) enum Precedence {
     Sum = 4,
     Product = 5,
     Prefix = 6,
+    Call = 7,
 }
 
 impl Precedence {
