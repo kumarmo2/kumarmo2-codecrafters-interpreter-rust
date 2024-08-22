@@ -12,6 +12,11 @@ pub(crate) enum Expression {
         operator: Token,
         expr: Box<Expression>,
     },
+    InfixExpression {
+        operator: Token,
+        left_expr: Box<Expression>,
+        right_expr: Box<Expression>,
+    },
 }
 
 impl std::fmt::Debug for Expression {
@@ -28,6 +33,11 @@ impl std::fmt::Debug for Expression {
             Expression::PrefixExpression { operator, expr } => {
                 write!(f, "({} {:?})", operator, expr)
             }
+            Expression::InfixExpression {
+                operator,
+                left_expr,
+                right_expr,
+            } => write!(f, "({operator} {:?} {:?})", left_expr, right_expr),
         }
     }
 }
@@ -35,10 +45,15 @@ impl std::fmt::Debug for Expression {
 #[derive(Clone)]
 pub(crate) enum Precedence {
     Lowest = 1,
+    Equals = 2,
+    LessGreater = 3,
+    Sum = 4,
+    Product = 5,
+    Prefix = 6,
 }
 
 impl Precedence {
-    pub(crate) fn value(&self) -> u32 {
-        self.clone() as u32
+    pub(crate) fn value(&self) -> u8 {
+        self.clone() as u8
     }
 }

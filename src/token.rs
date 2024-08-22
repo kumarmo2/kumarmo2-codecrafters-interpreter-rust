@@ -6,6 +6,8 @@ use std::{collections::HashMap, str::FromStr};
 use bytes::Bytes;
 use lazy_static::lazy_static;
 
+use crate::parser::expression::Precedence;
+
 pub enum LexicalError {
     UnExpectedToken { ch: char, line: u32 }, // Error token.
     UnterminatedString { line: u32 },        // Error Token.
@@ -89,6 +91,16 @@ pub(crate) enum Token {
     Var,
     While,
     EOF,
+}
+
+impl Token {
+    pub(crate) fn get_precedence(&self) -> Precedence {
+        match self {
+            Token::PLUS | Token::MINUS => Precedence::Sum,
+            Token::SLASH | Token::STAR => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
 }
 
 impl std::fmt::Display for Token {
