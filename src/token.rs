@@ -94,14 +94,24 @@ pub(crate) enum Token {
 }
 
 impl Token {
+    pub(crate) fn get_bytes(&self) -> Option<Bytes> {
+        match self {
+            Token::StringLiteral(b) | Token::Identifier(b) | Token::COMMENT(b) => Some(b.clone()),
+            _ => None,
+        }
+    }
     pub(crate) fn get_precedence(&self) -> Precedence {
         match self {
             Token::PLUS | Token::MINUS => Precedence::Sum,
             Token::SLASH | Token::STAR => Precedence::Product,
+            Token::And => Precedence::And,
+            Token::Or => Precedence::Or,
             Token::LESS | Token::GREATER | Token::LESSEQUAL | Token::GREATEREQUAL => {
                 Precedence::LessGreater
             }
+            Token::EQUAL => Precedence::Assign,
             Token::BANGEQUAL | Token::EQUALEQUAL => Precedence::Equals,
+            Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }

@@ -11,6 +11,15 @@ pub(crate) mod interpreter;
 pub(crate) mod parser;
 pub(crate) mod token;
 
+#[cfg(test)]
+pub(crate) mod tests;
+
+struct Void;
+pub(crate) enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
@@ -78,7 +87,8 @@ fn main() {
         }
         "evaluate" => {
             let file_contents = read_contents();
-            let mut interpreter = match Interpreter::from_source(file_contents) {
+            let stdout = std::io::stdout();
+            let mut interpreter = match Interpreter::from_source(file_contents, stdout) {
                 Ok(interpreter) => interpreter,
                 Err(e) => {
                     eprintln!("{:?}", e);
@@ -91,6 +101,41 @@ fn main() {
                     eprintln!("{:?}", e);
                     std::process::exit(70);
                 }
+            }
+        }
+        "parse-program" => {
+            let source = read_contents();
+            let mut parser = match Parser::from_source(source) {
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    std::process::exit(1);
+                }
+                Ok(parser) => parser,
+            };
+            let program = match parser.parse_program() {
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    std::process::exit(1);
+                }
+                Ok(program) => program,
+            };
+
+            for statement in program.iter() {
+                println!("{:?}", statement);
+            }
+        }
+        "run" => {
+            let source = read_contents();
+            let mut interpreter = match Interpreter::from_source(source, std::io::stdout()) {
+                Ok(i) => i,
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    std::process::exit(65);
+                }
+            };
+            if let Err(e) = interpreter.evaluate_program() {
+                eprintln!("{:?}", e);
+                std::process::exit(65);
             }
         }
         _ => {
