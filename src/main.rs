@@ -135,7 +135,10 @@ fn main() {
             };
             if let Err(e) = interpreter.evaluate_program() {
                 eprintln!("{:?}", e);
-                std::process::exit(65);
+                match e {
+                    interpreter::EvaluationError::ParseError(_) => std::process::exit(65),
+                    _ => std::process::exit(70),
+                }
             }
         }
         _ => {
